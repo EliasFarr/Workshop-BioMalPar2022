@@ -1,0 +1,123 @@
+---
+title: "BioMalPar Workshop"
+author: "Elias_Farr"
+date: '2022-05-24'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r message=FALSE, warning=FALSE}
+#Setup
+.libPaths('~/Documents/Praktika/Mara_Lawniczak/Rlibs') #not necessary if your Rlibs are all in the same place
+library(SingleCellExperiment)
+library(plotly)
+library(scmap)
+```
+
+```{r message=FALSE, warning=FALSE}
+# Load 10X counts as experimental dataset
+counts_new_dataset = read.csv2('/Users/elias/Documents/Praktika/Mara_Lawniczak/Workshop/pb-ch10x-set1/pb-ch10x-set1-ch10x-exp.csv', sep = ',', row.names = 1) #Your path
+
+# Load metadata to 10X dataset
+pheno_new_dataset = read.csv2('/Users/elias/Documents/Praktika/Mara_Lawniczak/Workshop/pb-ch10x-set1/pb-ch10x-set1-ch10x-data.csv', sep = ',')
+
+# Make counts numeric
+counts_new_dataset[,] = apply(counts_new_dataset, 2, as.numeric)
+
+#Check dimension
+dim(counts_new_dataset)
+```
+
+
+```{r message=FALSE, warning=FALSE}
+# Load 10x dataset to a SingleCellObject
+new.sce <- SingleCellExperiment(assays = list(logcounts = as.matrix(counts_new_dataset)), 
+                                    colData = pheno_new_dataset)
+
+# use gene names as feature symbols
+rowData(new.sce)$feature_symbol <- rownames(counts_new_dataset)
+
+# Select 250 highly variable features
+new.sce <- selectFeatures(new.sce, suppress_plot = F, n_features = 250)
+
+# Index cells for mapping
+new.sce = indexCell(new.sce)
+
+```
+
+
+
+
+
+
+```{r message=FALSE, warning=FALSE}
+# Load MCA as reference
+counts_atlas = read.csv2('/Users/elias/Documents/Praktika/Mara_Lawniczak/Workshop/pb-ss2-set1/pb-ss2-set1-ss2-exp.csv', sep = ',', row.names = 1)
+
+# Load metadata
+pheno_atlas = read.csv2('/Users/elias/Documents/Praktika/Mara_Lawniczak/Workshop/pb-ss2-set1/pb-ss2-set1-ss2-data.csv', sep = ',')
+
+# Make counts numeric
+counts_atlas[,] = apply(counts_atlas, 2, as.numeric)
+dim(counts_atlas)
+
+# Order dataset alphabetically
+counts_atlas = counts_atlas[,order(colnames(counts_atlas))]
+pheno_atlas = pheno_atlas[order(pheno_atlas$CELL_ID),]
+
+
+# Keep only asexual blood stages
+counts_atlas_blood = counts_atlas[,pheno_atlas$STAGE_HR %in% c('merozoite', 'ring', 'trophozoite', 'schizont')]
+pheno_atlas_blood = pheno_atlas[pheno_atlas$STAGE_HR %in% c('merozoite', 'ring', 'trophozoite', 'schizont'),]
+dim(counts_atlas_blood)
+
+# Check if datasets have the same gene names
+sum(rownames(counts_new_dataset) %in% rownames(counts_atlas))
+```
+
+
+
+```{r message=FALSE, warning=FALSE}
+# Load atlas to SCE
+atlas.sce <- SingleCellExperiment(assays = list(logcounts = as.matrix(counts_atlas_blood)), 
+                                    colData = pheno_atlas_blood)
+
+# use gene names as feature symbols
+rowData(atlas.sce)$feature_symbol <- rownames(atlas.sce)
+
+# Select features
+atlas.sce <- selectFeatures(atlas.sce, suppress_plot = T, n_features = 250)
+atlas.sce = indexCell(atlas.sce)
+```
+
+
+
+
+```{r message=FALSE, warning=FALSE}
+# Project SS2 to V3 data
+scmapCell_results_SS2_V3 <- scmapCell(
+        atlas.sce, 
+        list(
+              yan = metadata(new.sce)$scmap_cell_index
+        ), w = 10
+        
+)
+
+# Create vector to visualize the results with the length of the reference dataset
+V3_mapped = rep("not assigned", ncol(new.sce))
+
+# Assign the stage of the projected cell to the nearest cell in the reference dataset
+V3_mapped[scmapCell_results_SS2_V3$yan$cells[1,]] = atlas.sce$STAGE_HR
+
+# Display the nearest cells of the reference dataset with the labels of the projected cells
+plot_ly(data = pheno_new_dataset,
+        x = ~PC_1, y = ~PC_2, z= ~PC_3,
+        color= V3_mapped,
+        colors = c( '#319B72',  "grey", "#267355",   '#0D261c', '#1A4C39'),
+        opacity = 0.8,
+        size = 1)
+```
+
