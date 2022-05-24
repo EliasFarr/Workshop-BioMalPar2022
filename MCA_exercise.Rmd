@@ -2,7 +2,16 @@
 title: "BioMalPar Workshop"
 author: "Elias_Farr"
 date: '2022-05-24'
-output: html_document
+output:
+  html_document:
+    toc: yes
+    df_print: paged
+  html_notebook:
+    theme: flatly
+    toc: yes
+    toc_float: yes
+subtitle: Annotation
+institute: Wellcome Sanger Institute
 ---
 
 ```{r setup, include=FALSE}
@@ -41,7 +50,7 @@ new.sce <- SingleCellExperiment(assays = list(logcounts = as.matrix(counts_new_d
 rowData(new.sce)$feature_symbol <- rownames(counts_new_dataset)
 
 # Select 250 highly variable features
-new.sce <- selectFeatures(new.sce, suppress_plot = F, n_features = 250)
+new.sce <- selectFeatures(new.sce, suppress_plot = T, n_features = 250)
 
 # Index cells for mapping
 new.sce = indexCell(new.sce)
